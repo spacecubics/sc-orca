@@ -1,0 +1,715 @@
+[[sc-gpio-rtl-interfaces]]
+== RTL Interfaces
+
+本章では、SC-GPIOが提供するトップモジュールと、そのポート信号について説明する。
+
+[[sc-gpio-modules]]
+=== Module
+
+SC-GPIOは、接続するシステムバスに応じて2種類のトップモジュールを提供する。
+設計者は、使用するシステムバスに対応するトップモジュールを選択する。
+
+[cols="3,4",options="header"]
+|===
+|Top Module |System Bus Specification
+
+|sc_gpio_ahb
+|AMBA 3 AHB-Lite Subordinate
+
+|sc_gpio_axi
+|AMBA 4 AXI4 Subordinate
+|===
+
+各トップモジュールは、共通のSystem Interface、Configuration Input SignalsおよびGPIO Interfaceを持つ。
+System Bus Interfaceはトップモジュールごとに異なる。
+
+NOTE: `sc_gpio_ahb` と `sc_gpio_axi` は、別々のSC-GPIOインスタンスとして同一システム内に配置できる。
+
+[[sc-gpio-port-descriptions]]
+=== Port Descriptions
+
+[[sc-gpio-system-interface]]
+==== System Interface
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|SYS_CLK
+|Input
+|1
+|SC-GPIOとAMBA Interfaceのクロック。すべての同期信号は、このクロックの立ち上がりエッジで動作する。
+
+|SYS_RST_B
+|Input
+|1
+|Active-Lowの同期リセット。 `SYS_CLK` の立ち上がりエッジで取り込まれる。
+
+|GPIO_IRQ
+|Output
+|1
+|Active-Highのレベル割り込み信号。GPIOエッジイベントの発生を通知する。
+|===
+
+[[sc-gpio-configuration-input-ports]]
+==== Configuration Input Signals
+
+コンフィギュレーション入力信号は、GPIOの構成をポートごとに指定する。
+RTL統合時に定数へ接続し、Runtimeでは変化させないこと。各信号の設定方法は、
+<<sc-gpio-configuration-input-signals,Configuration Input Signals>>を参照すること。
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|GPIO_BITS_PRESENT
+|Input
+|`GPIO_NUM_PORTS` × 32
+|各GPIOポートに実装するビットを指定する。
+
+|GPIO_DIR_WRITABLE
+|Input
+|`GPIO_NUM_PORTS` × 32
+|各GPIOポートのDirectionレジスタをソフトウェアから変更できるビットを指定する。
+
+|GPIO_DIR_INIT
+|Input
+|`GPIO_NUM_PORTS` × 32
+|各GPIOポートのDirectionレジスタの初期値を指定する。
+
+|GPIO_OUT_INIT
+|Input
+|`GPIO_NUM_PORTS` × 32
+|各GPIOポートのOutputレジスタの初期値を指定する。
+|===
+
+[[sc-gpio-gpio-interface]]
+==== GPIO Interface
+
+GPIO Interfaceは、ポートごとに32ビットの信号を持つ。
+`GPIO_BITS_PRESENT` で無効にしたビットの `GPIO_O` および `GPIO_E` は0となる。
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|GPIO_I
+|Input
+|`GPIO_NUM_PORTS` × 32
+|GPIO入力信号。Directionの設定にかかわらず、内部の入力同期化回路へ取り込まれる。
+
+|GPIO_O
+|Output
+|`GPIO_NUM_PORTS` × 32
+|GPIO出力信号。
+
+|GPIO_E
+|Output
+|`GPIO_NUM_PORTS` × 32
+|GPIO出力イネーブル。1は出力、0は入力またはHigh-Zを示す。
+|===
+
+[NOTE]
+====
+双方向の外部端子を構成する場合は、 `GPIO_I` 、 `GPIO_O` および `GPIO_E` をFPGAのI/Oバッファへ接続する。
+====
+
+[[sc-gpio-ahb-lite-interface]]
+==== AMBA 3 AHB-Lite Interface
+
+`sc_gpio_ahb` は、32ビットのAMBA 3 AHB-Lite Subordinate Interfaceを持つ。
+AMBA 3 AHB-Lite Interfaceは `SYS_CLK` に同期して動作する。
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|AHB_S_HSEL
+|Input
+|1
+|Subordinate選択信号。
+
+|AHB_S_HADDR
+|Input
+|32
+|転送アドレス。
+
+|AHB_S_HTRANS
+|Input
+|2
+|転送種別。
+
+|AHB_S_HSIZE
+|Input
+|3
+|1ビートあたりの転送サイズ。
+
+|AHB_S_HBURST
+|Input
+|3
+|バースト種別。
+
+|AHB_S_HPROT
+|Input
+|4
+|保護属性。
+
+|AHB_S_HMASTLOCK
+|Input
+|1
+|ロック転送属性。
+
+|AHB_S_HWRITE
+|Input
+|1
+|転送方向。1は書き込み、0は読み出しを示す。
+
+|AHB_S_HREADYIN
+|Input
+|1
+|バスの転送完了入力。
+
+|AHB_S_HREADYOUT
+|Output
+|1
+|SC-GPIOの転送完了出力。0の間、転送を延長する。
+
+|AHB_S_HWDATA
+|Input
+|32
+|書き込みデータ。
+
+|AHB_S_HRDATA
+|Output
+|32
+|読み出しデータ。
+
+|AHB_S_HRESP
+|Output
+|2
+|転送応答。現在のSC-GPIOはOKAY (`2'b00`)のみを出力する。
+|===
+
+[NOTE]
+====
+`AHB_S_HPROT` および `AHB_S_HMASTLOCK` はAMBA 3 AHB-Lite Interfaceとの接続互換性のため、
+端子は存在するが、機能は実装されておらず、SC-GPIOのレジスタアクセスには影響しない。
+====
+
+[[sc-gpio-axi4-interface]]
+==== AMBA 4 AXI4 Interface
+
+`sc_gpio_axi` は、32ビットデータ幅および32ビットアドレス幅のAMBA 4 AXI4 Subordinate Interfaceを持つ。
+ID信号の幅は `AXI_ID_WIDTH` で指定する。
+AMBA 4 AXI4 Interfaceは `SYS_CLK` に同期して動作する。
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|AXI_S_AWID
+|Input
+|`AXI_ID_WIDTH`
+|Write AddressのトランザクションID。
+
+|AXI_S_AWADDR
+|Input
+|32
+|Write Addressの開始アドレス。
+
+|AXI_S_AWLEN
+|Input
+|8
+|Write Burstのバースト長。転送ビート数から1を引いた値を示す。
+
+|AXI_S_AWSIZE
+|Input
+|3
+|Write Burstの1ビートあたりの転送サイズ。
+
+|AXI_S_AWBURST
+|Input
+|2
+|Write Burstのバースト種別。
+
+|AXI_S_AWLOCK
+|Input
+|1
+|Write Addressのロック属性。
+
+|AXI_S_AWCACHE
+|Input
+|4
+|Write Addressのメモリタイプおよびキャッシュ属性。
+
+|AXI_S_AWPROT
+|Input
+|3
+|Write Addressの保護属性。
+
+|AXI_S_AWVALID
+|Input
+|1
+|Write Address Channelの有効信号。
+
+|AXI_S_AWREADY
+|Output
+|1
+|Write Address Channelの受け入れ可能信号。
+
+|AXI_S_WDATA
+|Input
+|32
+|書き込みデータ。
+
+|AXI_S_WSTRB
+|Input
+|4
+|Write Dataのバイトイネーブル。
+
+|AXI_S_WLAST
+|Input
+|1
+|Write Burstの最終ビートを示す信号。
+
+|AXI_S_WVALID
+|Input
+|1
+|Write Data Channelの有効信号。
+
+|AXI_S_WREADY
+|Output
+|1
+|Write Data Channelの受け入れ可能信号。
+
+|AXI_S_BID
+|Output
+|`AXI_ID_WIDTH`
+|Write ResponseのトランザクションID。
+
+|AXI_S_BRESP
+|Output
+|2
+|書き込み応答。
+
+|AXI_S_BVALID
+|Output
+|1
+|Write Response Channelの有効信号。
+
+|AXI_S_BREADY
+|Input
+|1
+|ManagerがWrite Responseを受け入れ可能であることを示す信号。
+
+|AXI_S_ARID
+|Input
+|`AXI_ID_WIDTH`
+|Read AddressのトランザクションID。
+
+|AXI_S_ARADDR
+|Input
+|32
+|Read Addressの開始アドレス。
+
+|AXI_S_ARLEN
+|Input
+|8
+|Read Burstのバースト長。転送ビート数から1を引いた値を示す。
+
+|AXI_S_ARSIZE
+|Input
+|3
+|Read Burstの1ビートあたりの転送サイズ。
+
+|AXI_S_ARBURST
+|Input
+|2
+|Read Burstのバースト種別。
+
+|AXI_S_ARLOCK
+|Input
+|1
+|Read Addressのロック属性。
+
+|AXI_S_ARCACHE
+|Input
+|4
+|Read Addressのメモリタイプおよびキャッシュ属性。
+
+|AXI_S_ARPROT
+|Input
+|3
+|Read Addressの保護属性。
+
+|AXI_S_ARVALID
+|Input
+|1
+|Read Address Channelの有効信号。
+
+|AXI_S_ARREADY
+|Output
+|1
+|Read Address Channelの受け入れ可能信号。
+
+|AXI_S_RID
+|Output
+|`AXI_ID_WIDTH`
+|Read DataのトランザクションID。
+
+|AXI_S_RDATA
+|Output
+|32
+|読み出しデータ。
+
+|AXI_S_RRESP
+|Output
+|2
+|読み出し応答。
+
+|AXI_S_RLAST
+|Output
+|1
+|Read Burstの最終ビートを示す信号。
+
+|AXI_S_RVALID
+|Output
+|1
+|Read Data Channelの有効信号。
+
+|AXI_S_RREADY
+|Input
+|1
+|ManagerがRead Dataを受け入れ可能であることを示す信号。
+|===
+
+[NOTE]
+====
+`AXI_S_AWLOCK` 、 `AXI_S_AWCACHE` 、 `AXI_S_AWPROT` 、 `AXI_S_ARLOCK` 、
+`AXI_S_ARCACHE` および `AXI_S_ARPROT` は
+AMBA 4 AXI4 Interfaceとの接続互換性のために端子を持つが、SC-GPIOのレジスタアクセスには影響しない。
+====
+
+[NOTE]
+====
+現在のSC-GPIOはレジスタアクセスエラーを生成しないため、
+`AXI_S_BRESP` および `AXI_S_RRESP` はOKAY (`2'b00`)のみを出力する。
+====
+
+[[sc-gpio-signal-synchronization-reset-values]]
+=== Signal Synchronization and Reset Values
+
+Synchronizationは、各信号を取り込むクロックまたはクロックとの関係を示す。
+StaticはRTL統合時に定数へ接続する信号、Asynchronousは `SYS_CLK` に非同期で入力される信号を示す。
+Reset Valueは、 `SYS_RST_B` を0にした状態で同期リセットが回路全体に反映された後の出力値を示す。
+入力信号のReset Valueは、SC-GPIOでは規定しないためN/Aとする。
+
+.System and GPIO Signals
+[cols="3,2,5,5",options="header"]
+|===
+|Signal |Direction |Synchronization |Reset Value
+
+|SYS_CLK
+|Input
+|Reference
+|N/A
+
+|SYS_RST_B
+|Input
+|`SYS_CLK`
+|N/A
+
+|GPIO_IRQ
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|GPIO_BITS_PRESENT
+|Input
+|Static
+|N/A
+
+|GPIO_DIR_WRITABLE
+|Input
+|Static
+|N/A
+
+|GPIO_DIR_INIT
+|Input
+|Static
+|N/A
+
+|GPIO_OUT_INIT
+|Input
+|Static
+|N/A
+
+|GPIO_I
+|Input
+|Asynchronous (`SYS_CLK` へ同期)
+|N/A
+
+|GPIO_O
+|Output
+|`SYS_CLK`
+|`GPIO_OUT_INIT & GPIO_BITS_PRESENT`
+
+|GPIO_E
+|Output
+|`SYS_CLK`
+|`GPIO_DIR_INIT & GPIO_BITS_PRESENT`
+|===
+
+.AMBA 3 AHB-Lite Signals
+[cols="3,2,5,5",options="header"]
+|===
+|Signal |Direction |Synchronization |Reset Value
+
+|AHB_S_HSEL
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HADDR
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HTRANS
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HSIZE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HBURST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HPROT
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HMASTLOCK
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HWRITE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HREADYIN
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HREADYOUT
+|Output
+|`SYS_CLK`
+|`1'b1`
+
+|AHB_S_HWDATA
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HRDATA
+|Output
+|`SYS_CLK`
+|`32'h0000_0000`
+
+|AHB_S_HRESP
+|Output
+|`SYS_CLK`
+|`2'b00`
+|===
+
+.AMBA 4 AXI4 Signals
+[cols="3,2,5,5",options="header"]
+|===
+|Signal |Direction |Synchronization |Reset Value
+
+|AXI_S_AWID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWADDR
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWLEN
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWSIZE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWBURST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWLOCK
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWCACHE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWPROT
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWVALID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWREADY
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_WDATA
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WSTRB
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WLAST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WVALID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WREADY
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_BID
+|Output
+|`SYS_CLK`
+|`'0`
+
+|AXI_S_BRESP
+|Output
+|`SYS_CLK`
+|`2'b00`
+
+|AXI_S_BVALID
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_BREADY
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARADDR
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARLEN
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARSIZE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARBURST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARLOCK
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARCACHE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARPROT
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARVALID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARREADY
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_RID
+|Output
+|`SYS_CLK`
+|`'0`
+
+|AXI_S_RDATA
+|Output
+|`SYS_CLK`
+|`32'h0000_0000`
+
+|AXI_S_RRESP
+|Output
+|`SYS_CLK`
+|`2'b00`
+
+|AXI_S_RLAST
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_RVALID
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_RREADY
+|Input
+|`SYS_CLK`
+|N/A
+|===
+
+NOTE: `AXI_S_AWREADY` および `AXI_S_ARREADY` は、リセット解除後の最初の `SYS_CLK` 立ち上がりエッジで、アイドル状態の場合に1となる。

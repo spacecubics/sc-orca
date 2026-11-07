@@ -1,0 +1,102 @@
+[[sc-gpio-ip-configuration]]
+== IP Configuration
+
+本章では、SC-GPIOのコンフィギュレーションに使用するモジュールパラメータおよび
+コンフィギュレーション入力信号について説明する。
+
+[[sc-gpio-amba-configuration]]
+=== AMBA Configuration
+
+AMBA 4 AXI4インタフェースでは、ID信号のビット幅を設定できる。
+
+[cols="2,5,2,2",options="header"]
+|===
+|Parameter |Description |Range |Default
+
+|AXI_ID_WIDTH
+|AMBA 4 AXI4 ID信号のビット幅。
+|1以上
+|1
+|===
+
+NOTE: AMBA 3 AHB-Liteインタフェースを選択した場合、AMBAに関するコンフィギュレーション項目はない。
+
+[[sc-gpio-gpio-configuration]]
+=== GPIO Configuration
+
+GPIOの構成は、モジュールパラメータとコンフィギュレーション入力信号で決定する。
+
+[[sc-gpio-module-parameters]]
+==== Module Parameters
+
+[cols="2,5,2,2",options="header"]
+|===
+|Parameter |Description |Range |Default
+
+|GPIO_NUM_PORTS
+|実装するGPIOポート数。各ポートのビット幅は `GPIO_BITS_PRESENT[N]` で決定する。
+|1–32
+|1
+
+|GPIO_TMR_PORTS
+|ポート単位のTMR選択マスク。
+`GPIO_TMR_PORTS` のビット__N__が1の場合、GPIO Port __N__のOutputレジスタと
+DirectionレジスタをTMR構成にする。
+|`32'h0000_0000`–`32'hFFFF_FFFF`
+|`32'h0000_0000`
+
+|===
+
+NOTE: `GPIO_NUM_PORTS` が1から32の範囲外の場合、シミュレーション時のassertによりエラーとなる。
+
+`GPIO_NUM_PORTS` 以上のポート番号に対応する `GPIO_TMR_PORTS` のビットは使用されない。
+
+[[sc-gpio-configuration-input-signals]]
+==== Configuration Input Signals
+
+コンフィギュレーション入力信号は、GPIOの構成を指定するための入力信号である。
+RTL統合時に定数へ接続し、Runtimeでは変化させないこと。
+
+[NOTE]
+====
+VivadoやLibero SoCなどの論理合成ツールでは、ツールやバージョンによって
+多次元のモジュールパラメータがサポートされない場合がある。
+論理合成ツール間の互換性を考慮し、これらの構成値を入力信号として定義している。
+これらの信号を定数以外へ接続する構成はサポートしない。
+====
+
+_N_ はGPIOポート番号を表し、0から `GPIO_NUM_PORTS - 1` の範囲とする。
+各入力はポートごとに32ビットの設定値を持つ。
+
+[cols="2,2,6",options="header"]
+|===
+|信号名 |幅 |説明
+
+|GPIO_BITS_PRESENT[N]
+|32
+|各GPIOポートの有効ビットを設定する。
+1に設定されたビットをGPIO Port __N__に実装する。
+0のビットはレジスタ上で予約領域となる。
+
+|GPIO_DIR_WRITABLE[N]
+|32
+|各GPIOポートのDirection変更を設定する。
+1に設定されたビットはDirectionレジスタの書き込みにより信号方向を変更できる。
+0のビットは `GPIO_DIR_INIT[N]` で指定した方向に固定される。
+
+|GPIO_DIR_INIT[N]
+|32
+|各GPIOポートのDirectionの初期値を設定する。
+0は入力、1は出力を示す。
+
+|GPIO_OUT_INIT[N]
+|32
+|各GPIOポートのOutputレジスタの初期値を設定する。
+|===
+
+[NOTE]
+====
+`GPIO_DIR_WRITABLE[N]` 、 `GPIO_DIR_INIT[N]` および `GPIO_OUT_INIT[N]` は、
+`GPIO_BITS_PRESENT[N]` によってマスクされる。
+そのため、 `GPIO_BITS_PRESENT[N]` が0に設定されているビットの設定値は無効となる。
+====

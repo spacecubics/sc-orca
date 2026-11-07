@@ -1,0 +1,723 @@
+[[sc-gpio-rtl-interfaces]]
+== RTL Interfaces
+
+This chapter describes the top-level modules and port signals provided by SC-GPIO.
+
+[[sc-gpio-modules]]
+=== Module
+
+SC-GPIO provides two top-level modules for different system bus specifications.
+The designer selects the top-level module that corresponds to the system bus in use.
+
+[cols="3,4",options="header"]
+|===
+|Top Module |System Bus Specification
+
+|sc_gpio_ahb
+|AMBA 3 AHB-Lite Subordinate
+
+|sc_gpio_axi
+|AMBA 4 AXI4 Subordinate
+|===
+
+Each top-level module has a common System Interface, Configuration Input Signals, and GPIO
+Interface.
+The System Bus Interface differs between the top-level modules.
+
+NOTE: `sc_gpio_ahb` and `sc_gpio_axi` can be instantiated as separate SC-GPIO instances in the
+same system.
+
+[[sc-gpio-port-descriptions]]
+=== Port Descriptions
+
+[[sc-gpio-system-interface]]
+==== System Interface
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|SYS_CLK
+|Input
+|1
+|Clock for SC-GPIO and the AMBA interface. All synchronous signals operate on the rising edge of
+this clock.
+
+|SYS_RST_B
+|Input
+|1
+|Active-Low synchronous reset sampled on the rising edge of `SYS_CLK`.
+
+|GPIO_IRQ
+|Output
+|1
+|Active-High level interrupt signal that indicates the occurrence of a GPIO edge event.
+|===
+
+[[sc-gpio-configuration-input-ports]]
+==== Configuration Input Signals
+
+The configuration input signals specify the GPIO configuration for each port.
+Connect these signals to constants during RTL integration and do not change them at runtime.
+See <<sc-gpio-configuration-input-signals,Configuration Input Signals>> for details.
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|GPIO_BITS_PRESENT
+|Input
+|`GPIO_NUM_PORTS` × 32
+|Selects the implemented bits in each GPIO port.
+
+|GPIO_DIR_WRITABLE
+|Input
+|`GPIO_NUM_PORTS` × 32
+|Selects the Direction register bits that software can modify for each GPIO port.
+
+|GPIO_DIR_INIT
+|Input
+|`GPIO_NUM_PORTS` × 32
+|Specifies the initial Direction register value for each GPIO port.
+
+|GPIO_OUT_INIT
+|Input
+|`GPIO_NUM_PORTS` × 32
+|Specifies the initial Output register value for each GPIO port.
+|===
+
+[[sc-gpio-gpio-interface]]
+==== GPIO Interface
+
+The GPIO Interface provides 32-bit signals for each port.
+Bits disabled by `GPIO_BITS_PRESENT` are 0 on `GPIO_O` and `GPIO_E`.
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|GPIO_I
+|Input
+|`GPIO_NUM_PORTS` × 32
+|GPIO input signals. These signals are captured by the internal input synchronizers regardless of
+the Direction setting.
+
+|GPIO_O
+|Output
+|`GPIO_NUM_PORTS` × 32
+|GPIO output signals.
+
+|GPIO_E
+|Output
+|`GPIO_NUM_PORTS` × 32
+|GPIO output enables. 1 selects output, and 0 selects input or High-Z.
+|===
+
+[NOTE]
+====
+To implement bidirectional external pins, connect `GPIO_I`, `GPIO_O`, and `GPIO_E` to FPGA I/O
+buffers.
+====
+
+[[sc-gpio-ahb-lite-interface]]
+==== AMBA 3 AHB-Lite Interface
+
+`sc_gpio_ahb` provides a 32-bit AMBA 3 AHB-Lite Subordinate Interface.
+The AMBA 3 AHB-Lite Interface operates synchronously with `SYS_CLK`.
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|AHB_S_HSEL
+|Input
+|1
+|Subordinate select signal.
+
+|AHB_S_HADDR
+|Input
+|32
+|Transfer address.
+
+|AHB_S_HTRANS
+|Input
+|2
+|Transfer type.
+
+|AHB_S_HSIZE
+|Input
+|3
+|Transfer size per beat.
+
+|AHB_S_HBURST
+|Input
+|3
+|Burst type.
+
+|AHB_S_HPROT
+|Input
+|4
+|Protection attributes.
+
+|AHB_S_HMASTLOCK
+|Input
+|1
+|Locked transfer attribute.
+
+|AHB_S_HWRITE
+|Input
+|1
+|Transfer direction. 1 indicates a write, and 0 indicates a read.
+
+|AHB_S_HREADYIN
+|Input
+|1
+|Bus transfer completion input.
+
+|AHB_S_HREADYOUT
+|Output
+|1
+|SC-GPIO transfer completion output. A value of 0 extends the transfer.
+
+|AHB_S_HWDATA
+|Input
+|32
+|Write data.
+
+|AHB_S_HRDATA
+|Output
+|32
+|Read data.
+
+|AHB_S_HRESP
+|Output
+|2
+|Transfer response. The current SC-GPIO implementation only returns OKAY (`2'b00`).
+|===
+
+[NOTE]
+====
+`AHB_S_HPROT` and `AHB_S_HMASTLOCK` are present for connection compatibility with the AMBA 3
+AHB-Lite Interface.
+Their functions are not implemented, and they do not affect SC-GPIO register accesses.
+====
+
+[[sc-gpio-axi4-interface]]
+==== AMBA 4 AXI4 Interface
+
+`sc_gpio_axi` provides an AMBA 4 AXI4 Subordinate Interface with 32-bit data and address widths.
+The ID signal width is specified by `AXI_ID_WIDTH`.
+The AMBA 4 AXI4 Interface operates synchronously with `SYS_CLK`.
+
+[cols="3,2,2,7",options="header"]
+|===
+|Signal |Direction |Width |Description
+
+|AXI_S_AWID
+|Input
+|`AXI_ID_WIDTH`
+|Write Address transaction ID.
+
+|AXI_S_AWADDR
+|Input
+|32
+|Write Address start address.
+
+|AXI_S_AWLEN
+|Input
+|8
+|Write Burst length, encoded as the number of transfer beats minus one.
+
+|AXI_S_AWSIZE
+|Input
+|3
+|Transfer size per Write Burst beat.
+
+|AXI_S_AWBURST
+|Input
+|2
+|Write Burst type.
+
+|AXI_S_AWLOCK
+|Input
+|1
+|Write Address lock attribute.
+
+|AXI_S_AWCACHE
+|Input
+|4
+|Write Address memory type and cache attributes.
+
+|AXI_S_AWPROT
+|Input
+|3
+|Write Address protection attributes.
+
+|AXI_S_AWVALID
+|Input
+|1
+|Write Address channel valid signal.
+
+|AXI_S_AWREADY
+|Output
+|1
+|Write Address channel ready signal.
+
+|AXI_S_WDATA
+|Input
+|32
+|Write data.
+
+|AXI_S_WSTRB
+|Input
+|4
+|Write data byte enables.
+
+|AXI_S_WLAST
+|Input
+|1
+|Indicates the final Write Burst beat.
+
+|AXI_S_WVALID
+|Input
+|1
+|Write Data channel valid signal.
+
+|AXI_S_WREADY
+|Output
+|1
+|Write Data channel ready signal.
+
+|AXI_S_BID
+|Output
+|`AXI_ID_WIDTH`
+|Write Response transaction ID.
+
+|AXI_S_BRESP
+|Output
+|2
+|Write response.
+
+|AXI_S_BVALID
+|Output
+|1
+|Write Response channel valid signal.
+
+|AXI_S_BREADY
+|Input
+|1
+|Indicates that the Manager can accept a Write Response.
+
+|AXI_S_ARID
+|Input
+|`AXI_ID_WIDTH`
+|Read Address transaction ID.
+
+|AXI_S_ARADDR
+|Input
+|32
+|Read Address start address.
+
+|AXI_S_ARLEN
+|Input
+|8
+|Read Burst length, encoded as the number of transfer beats minus one.
+
+|AXI_S_ARSIZE
+|Input
+|3
+|Transfer size per Read Burst beat.
+
+|AXI_S_ARBURST
+|Input
+|2
+|Read Burst type.
+
+|AXI_S_ARLOCK
+|Input
+|1
+|Read Address lock attribute.
+
+|AXI_S_ARCACHE
+|Input
+|4
+|Read Address memory type and cache attributes.
+
+|AXI_S_ARPROT
+|Input
+|3
+|Read Address protection attributes.
+
+|AXI_S_ARVALID
+|Input
+|1
+|Read Address channel valid signal.
+
+|AXI_S_ARREADY
+|Output
+|1
+|Read Address channel ready signal.
+
+|AXI_S_RID
+|Output
+|`AXI_ID_WIDTH`
+|Read Data transaction ID.
+
+|AXI_S_RDATA
+|Output
+|32
+|Read data.
+
+|AXI_S_RRESP
+|Output
+|2
+|Read response.
+
+|AXI_S_RLAST
+|Output
+|1
+|Indicates the final Read Burst beat.
+
+|AXI_S_RVALID
+|Output
+|1
+|Read Data channel valid signal.
+
+|AXI_S_RREADY
+|Input
+|1
+|Indicates that the Manager can accept Read Data.
+|===
+
+[NOTE]
+====
+`AXI_S_AWLOCK`, `AXI_S_AWCACHE`, `AXI_S_AWPROT`, `AXI_S_ARLOCK`, `AXI_S_ARCACHE`,
+and `AXI_S_ARPROT` are present for connection compatibility with the AMBA 4 AXI4 Interface.
+They do not affect SC-GPIO register accesses.
+====
+
+[NOTE]
+====
+The current SC-GPIO implementation does not generate register access errors.
+Therefore, `AXI_S_BRESP` and `AXI_S_RRESP` only return OKAY (`2'b00`).
+====
+
+[[sc-gpio-signal-synchronization-reset-values]]
+=== Signal Synchronization and Reset Values
+
+Synchronization identifies the clock used to sample each signal or its relationship to the clock.
+Static identifies a signal connected to a constant during RTL integration,
+and Asynchronous identifies a signal that is asynchronous to `SYS_CLK`.
+Reset Value is the output value after the synchronous reset has propagated through the design while `SYS_RST_B` is 0.
+Input reset values are N/A because SC-GPIO does not define them.
+
+.System and GPIO Signals
+[cols="3,2,5,5",options="header"]
+|===
+|Signal |Direction |Synchronization |Reset Value
+
+|SYS_CLK
+|Input
+|Reference
+|N/A
+
+|SYS_RST_B
+|Input
+|`SYS_CLK`
+|N/A
+
+|GPIO_IRQ
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|GPIO_BITS_PRESENT
+|Input
+|Static
+|N/A
+
+|GPIO_DIR_WRITABLE
+|Input
+|Static
+|N/A
+
+|GPIO_DIR_INIT
+|Input
+|Static
+|N/A
+
+|GPIO_OUT_INIT
+|Input
+|Static
+|N/A
+
+|GPIO_I
+|Input
+|Asynchronous (internally synchronized to `SYS_CLK`)
+|N/A
+
+|GPIO_O
+|Output
+|`SYS_CLK`
+|`GPIO_OUT_INIT & GPIO_BITS_PRESENT`
+
+|GPIO_E
+|Output
+|`SYS_CLK`
+|`GPIO_DIR_INIT & GPIO_BITS_PRESENT`
+|===
+
+.AMBA 3 AHB-Lite Signals
+[cols="3,2,5,5",options="header"]
+|===
+|Signal |Direction |Synchronization |Reset Value
+
+|AHB_S_HSEL
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HADDR
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HTRANS
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HSIZE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HBURST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HPROT
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HMASTLOCK
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HWRITE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HREADYIN
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HREADYOUT
+|Output
+|`SYS_CLK`
+|`1'b1`
+
+|AHB_S_HWDATA
+|Input
+|`SYS_CLK`
+|N/A
+
+|AHB_S_HRDATA
+|Output
+|`SYS_CLK`
+|`32'h0000_0000`
+
+|AHB_S_HRESP
+|Output
+|`SYS_CLK`
+|`2'b00`
+|===
+
+.AMBA 4 AXI4 Signals
+[cols="3,2,5,5",options="header"]
+|===
+|Signal |Direction |Synchronization |Reset Value
+
+|AXI_S_AWID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWADDR
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWLEN
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWSIZE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWBURST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWLOCK
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWCACHE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWPROT
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWVALID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_AWREADY
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_WDATA
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WSTRB
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WLAST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WVALID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_WREADY
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_BID
+|Output
+|`SYS_CLK`
+|`'0`
+
+|AXI_S_BRESP
+|Output
+|`SYS_CLK`
+|`2'b00`
+
+|AXI_S_BVALID
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_BREADY
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARADDR
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARLEN
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARSIZE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARBURST
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARLOCK
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARCACHE
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARPROT
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARVALID
+|Input
+|`SYS_CLK`
+|N/A
+
+|AXI_S_ARREADY
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_RID
+|Output
+|`SYS_CLK`
+|`'0`
+
+|AXI_S_RDATA
+|Output
+|`SYS_CLK`
+|`32'h0000_0000`
+
+|AXI_S_RRESP
+|Output
+|`SYS_CLK`
+|`2'b00`
+
+|AXI_S_RLAST
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_RVALID
+|Output
+|`SYS_CLK`
+|`1'b0`
+
+|AXI_S_RREADY
+|Input
+|`SYS_CLK`
+|N/A
+|===
+
+NOTE: `AXI_S_AWREADY` and `AXI_S_ARREADY` become 1 on the first rising edge of `SYS_CLK`
+after reset is deasserted when their channels are idle.

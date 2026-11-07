@@ -1,0 +1,8 @@
+= SC-GPIO
+:toc:
+:toclevels: 3
+:sectnums:
+
+include::../../../../docs/en/conventions.adoc[]
+
+include::sc-gpio-content.adoc[]

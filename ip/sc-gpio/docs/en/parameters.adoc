@@ -1,0 +1,100 @@
+[[sc-gpio-ip-configuration]]
+== IP Configuration
+
+This chapter describes the module parameters and configuration input signals used to configure SC-GPIO.
+
+[[sc-gpio-amba-configuration]]
+=== AMBA Configuration
+
+The AMBA 4 AXI4 interface allows the ID signal width to be configured.
+
+[cols="2,5,2,2",options="header"]
+|===
+|Parameter |Description |Range |Default
+
+|AXI_ID_WIDTH
+|AMBA 4 AXI4 ID signal width.
+|1 or greater
+|1
+|===
+
+NOTE: There are no AMBA-related configuration items when the AMBA 3 AHB-Lite interface is selected.
+
+[[sc-gpio-gpio-configuration]]
+=== GPIO Configuration
+
+The GPIO configuration is determined by module parameters and configuration input signals.
+
+[[sc-gpio-module-parameters]]
+==== Module Parameters
+
+[cols="2,5,2,2",options="header"]
+|===
+|Parameter |Description |Range |Default
+
+|GPIO_NUM_PORTS
+|Number of GPIO ports to implement. The width of each port is determined by `GPIO_BITS_PRESENT[N]`.
+|1–32
+|1
+
+|GPIO_TMR_PORTS
+|Per-port TMR selection mask.
+When bit _N_ of `GPIO_TMR_PORTS` is 1, the Output and Direction registers for GPIO Port _N_ use TMR.
+|`32'h0000_0000`–`32'hFFFF_FFFF`
+|`32'h0000_0000`
+
+|===
+
+NOTE: A simulation assertion reports an error if `GPIO_NUM_PORTS` is outside the range of 1 to 32.
+
+Bits in `GPIO_TMR_PORTS` corresponding to port numbers greater than or equal to `GPIO_NUM_PORTS`
+are unused.
+
+[[sc-gpio-configuration-input-signals]]
+==== Configuration Input Signals
+
+The configuration input signals specify the GPIO configuration.
+Connect these signals to constants during RTL integration and do not change them at runtime.
+
+[NOTE]
+====
+Depending on the tool and version, synthesis tools such as Vivado
+and Libero SoC may not support multidimensional module parameters.
+To maintain compatibility across synthesis tools, these configuration values are defined as input signals.
+Configurations that connect these signals to values other than constants are not supported.
+====
+
+_N_ denotes a GPIO port number in the range from 0 to `GPIO_NUM_PORTS - 1`.
+Each input provides a 32-bit configuration value for each port.
+
+[cols="2,2,6",options="header"]
+|===
+|Signal |Width |Description
+
+|GPIO_BITS_PRESENT[N]
+|32
+|Selects the implemented bits in each GPIO port.
+A bit set to 1 implements the corresponding bit in GPIO Port _N_.
+A bit set to 0 is reserved in the registers.
+
+|GPIO_DIR_WRITABLE[N]
+|32
+|Configures whether the Direction value can be changed for each GPIO port bit.
+A bit set to 1 allows software to change the signal direction by writing the Direction register.
+A bit set to 0 fixes the direction to the value specified by `GPIO_DIR_INIT[N]`.
+
+|GPIO_DIR_INIT[N]
+|32
+|Sets the initial Direction value for each GPIO port.
+0 selects input, and 1 selects output.
+
+|GPIO_OUT_INIT[N]
+|32
+|Sets the initial Output register value for each GPIO port.
+|===
+
+[NOTE]
+====
+`GPIO_DIR_WRITABLE[N]`, `GPIO_DIR_INIT[N]`, and `GPIO_OUT_INIT[N]` are masked by `GPIO_BITS_PRESENT[N]`.
+Therefore, their settings are ignored for bits set to 0 in `GPIO_BITS_PRESENT[N]`.
+====

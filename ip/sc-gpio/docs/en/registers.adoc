@@ -1,0 +1,339 @@
+[[sc-gpio-registers]]
+== Registers
+
+This chapter describes the SC-GPIO Register Map and the function of each register.
+
+[[sc-gpio-register-map]]
+=== Register Map
+
+The number of port control register instances is determined at RTL design time.
+Software can determine the number of ports by reading the <<sc-gpio-ip-configuration-register,IP Configuration Register>>.
+
+_N_ denotes a GPIO port number in the range from 0 to `GPIO_NUM_PORTS - 1`.
+When 32 ports are implemented, the final Register Offset is `0x4FC`, and the final byte Offset occupied by this Register is `0x4FF`.
+
+.SC-GPIO Register List
+[cols="1,4,2,1",options="header",]
+|===
+| Offset                | Register                                     | Initial    | R/W
+| 0x000                 | IP Version Register                          | 1.1.x      | R
+| 0x004                 | IP Configuration Register                    | Config.    | R
+| 0x010                 | IP Reset Register                            | 0x00000001 | R/W
+| 0x01C                 | Scratch Pad Register                         | 0x00000000 | R/W
+| 0x020                 | Interrupt Status Register                    | 0x00000000 | R
+| 0x024                 | Interrupt Enable Register                    | 0x00000000 | R/W
+| 0x100 + (0x20 × _N_ ) | Port _N_ Output Data Register                | Config.    | R/W
+| 0x104 + (0x20 × _N_ ) | Port _N_ Input Data Register                 | 0x00000000 | R
+| 0x108 + (0x20 × _N_ ) | Port _N_ Direction Register                  | Config.    | R/W
+| 0x10C + (0x20 × _N_ ) | Port _N_ Bit Present Register                | Config.    | R
+| 0x110 + (0x20 × _N_ ) | Port _N_ Edge Pending Register               | 0x00000000 | R/W1C
+| 0x114 + (0x20 × _N_ ) | Port _N_ Interrupt Enable Register           | 0x00000000 | R/W
+| 0x118 + (0x20 × _N_ ) | Port _N_ Rising Edge Detect Enable Register  | 0x00000000 | R/W
+| 0x11C + (0x20 × _N_ ) | Port _N_ Falling Edge Detect Enable Register | 0x00000000 | R/W
+|===
+
+Registers with an Initial value of Config. derive their initial values from <<sc-gpio-ip-configuration,IP Configuration>>.
+See the description of each Register for its specific initial value.
+
+[NOTE]
+====
+The SC-GPIO Register Address Region is `0x800` bytes.
+Within this region, reads from Offsets not defined in the Register Map return `0x00000000`, and writes are ignored.
+AMBA 3 AHB-Lite and AMBA 4 AXI4 return an OKAY response for these accesses.
+====
+
+[[sc-gpio-ip-version-register]]
+=== IP Version Register (Offset: 0x000)
+
+This Register reports the GPIO core IP Version.
+
+The current IP Version is 1.1.x.
+
+.IP Version Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit   | Field            | Description                           | R/W | Reset
+| 31:24 | IP Major Version | Major Version of the GPIO core.       | R   | 0x1
+| 23:16 | IP Minor Version | Minor Version of the GPIO core.       | R   | 0x1
+| 15:0  | IP Patch Version | Patch Version of the GPIO core.       | R   | Variable
+|===
+
+[NOTE]
+====
+The Patch Version is updated for changes that do not affect compatibility.
+Software must use the Major Version and Minor Version to determine compatibility.
+The Patch Version value can be read from the Register.
+====
+
+[[sc-gpio-ip-configuration-register]]
+=== IP Configuration Register (Offset: 0x004)
+
+The IP Configuration Register reports GPIO core configuration information to the system.
+
+For the GPIO core, this Register reports the number of GPIO ports implemented in the system.
+
+.IP Configuration Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field     | Description                                                               | R/W | Reset
+| 31:6 | Reserved  | -                                                                         | R   | 0
+| 5:0  | Num Ports | Number of GPIO ports. +
+                      Reads as 1 when one port is implemented. +
+                      Reads a value from 1 to 32 according to the number of implemented ports. | R | Config.
+|===
+
+The Num Ports value is determined by `GPIO_NUM_PORTS`.
+
+[[sc-gpio-ip-reset-register]]
+=== IP Reset Register (Offset: 0x010)
+
+The IP Reset Register controls the GPIO core Software Reset.
+
+This Register can reset all logic except the Register itself and the system bus.
+
+.IP Reset Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field          | Description                                                                        | R/W | Reset
+| 31:1 | Reserved       | -                                                                                  | R   | 0
+| 0    | Software Reset | Controls the GPIO core Software Reset. +
+                          1: Assert Software Reset +
+                          0: Release Software Reset +
+                          Because the initial value is 1, software must clear this bit after a system reset. | R/W | 0b1
+|===
+
+[[sc-gpio-scratch-pad-register]]
+=== Scratch Pad Register (Offset: 0x01C)
+
+The Scratch Pad Register is a general-purpose Register that software can read and write with arbitrary values.
+
+The value does not control hardware and can be used by software for debugging, state storage, and operational checks.
+
+.Scratch Pad Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field       | Description                                                     | R/W | Reset
+| 31:0 | Scratch Pad | General-purpose field freely readable and writable by software. | R/W | 0x00000000
+|===
+
+[[sc-gpio-interrupt-status-register]]
+=== Interrupt Status Register (Offset: 0x020)
+
+The Interrupt Status Register reports GPIO core interrupt status.
+
+The Register has fields for 32 ports. Bits for ports disabled at RTL design time are reserved.
+
+A bit is reflected as interrupt status when the corresponding bits in the
+<<sc-gpio-port-edge-pending-register,Port Edge Pending Register>> and
+<<sc-gpio-port-interrupt-enable-register,Port Interrupt Enable Register>> are both set.
+
+This Register does not latch interrupt events.
+Clearing the event source in the <<sc-gpio-port-edge-pending-register,Port Edge Pending Register>> also clears the corresponding status bit.
+
+Software can use this Register as an index to identify the port that generated an interrupt.
+
+.Interrupt Status Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit | Field              | Description                                                      | R/W | Reset
+| 31  | Port 31 Int Status | Indicates that an interrupt occurred on any bit of GPIO Port 31. | R | 0b0
+| 30  | Port 30 Int Status | Indicates that an interrupt occurred on any bit of GPIO Port 30. | R | 0b0
+| ... | ...                | ...                                                              | ... | ...
+| 1   | Port 1 Int Status  | Indicates that an interrupt occurred on any bit of GPIO Port 1.  | R | 0b0
+| 0   | Port 0 Int Status  | Indicates that an interrupt occurred on any bit of GPIO Port 0.  | R | 0b0
+|===
+
+[[sc-gpio-interrupt-enable-register]]
+=== Interrupt Enable Register (Offset: 0x024)
+
+The Interrupt Enable Register controls interrupt signal notification for the GPIO core.
+
+When corresponding bits in the Interrupt Enable Register and
+<<sc-gpio-interrupt-status-register,Interrupt Status Register>> are both set,
+the GPIO core asserts the interrupt output signal to report the interrupt.
+
+.Interrupt Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit | Field              | Description                                            | R/W | Reset
+| 31  | Port 31 Int Enable | Enables interrupt event notification for GPIO Port 31. | R/W | 0b0
+| 30  | Port 30 Int Enable | Enables interrupt event notification for GPIO Port 30. | R/W | 0b0
+| ... | ...                | ...                                                    | ... | ...
+| 1   | Port 1 Int Enable  | Enables interrupt event notification for GPIO Port 1.  | R/W | 0b0
+| 0   | Port 0 Int Enable  | Enables interrupt event notification for GPIO Port 0.  | R/W | 0b0
+|===
+
+[[sc-gpio-port-output-register]]
+=== Port _N_ Output Register (Offset: 0x100 + 0x20 * _N_)
+
+The Port _N_ Output Register controls the output data for GPIO Port _N_.
+
+Software can write this Register regardless of the signal direction of each bit.
+When the corresponding bit in the <<sc-gpio-port-direction-register,Direction Register>> is configured as an output,
+the value written to this Register is driven on the GPIO port.
+
+Software can also write bits whose signal direction is fixed as input by the <<sc-gpio-port-direction-register,Direction Register>>,
+but those values do not affect the GPIO port.
+
+The initial value of this Register can be configured at RTL design time and is therefore implementation dependent.
+Bits disabled at RTL design time always read as 0.
+
+The initial value after reset is determined by `GPIO_OUT_INIT[N] & GPIO_BITS_PRESENT[N]`.
+
+.Port _N_ Output Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field       | Description                                        | R/W | Reset
+| 31:0 | Output Data | Sets the output signal level for GPIO Port _N_.    | R/W | Config.
+|===
+
+[[sc-gpio-port-input-register]]
+=== Port _N_ Input Register (Offset: 0x104 + 0x20 * _N_)
+
+The Port _N_ Input Register reports the input data for GPIO Port _N_.
+
+This Register always reports the signal state of the GPIO port regardless of signal direction.
+
+[NOTE]
+====
+Immediately after reset, this Register reads as `0x00000000`.
+After reset is released, the GPIO input state is reflected through the internal synchronizer,
+so the value might no longer be `0x00000000` when read by software.
+====
+
+Bits disabled at RTL design time always read as 0.
+
+.Port _N_ Input Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field      | Description                                      | R/W | Reset
+| 31:0 | Input Data | Reports the input signal level for GPIO Port _N_. | R   | 0x00000000
+|===
+
+[[sc-gpio-port-direction-register]]
+=== Port _N_ Direction Register (Offset: 0x108 + 0x20 * _N_)
+
+The Port _N_ Direction Register controls the signal direction of GPIO Port _N_.
+
+The GPIO port changes signal direction according to the value configured in this Register.
+
+The signal direction can be fixed for each bit at RTL design time.
+For bits where `GPIO_DIR_WRITABLE[N]` is 0, the signal direction is fixed to the value specified by `GPIO_DIR_INIT[N]`, and writes are ignored.
+
+The reset value of this Register is determined by the GPIO_DIR_INIT configuration at RTL design time.
+
+The initial value after reset is determined by `GPIO_DIR_INIT[N] & GPIO_BITS_PRESENT[N]`.
+
+Bits disabled at RTL design time always read as 0.
+
+.Port _N_ Direction Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field          | Description                                       | R/W | Reset
+| 31:0 | Port Direction | Sets the signal direction for GPIO Port _N_. +
+                          0: GPIO port signal direction is input +
+                          1: GPIO port signal direction is output           | R/W | Config.
+|===
+
+[[sc-gpio-port-bit-present-register]]
+=== Port _N_ Bit Present Register (Offset: 0x10C + 0x20 * _N_)
+
+The Port _N_ Bit Present Register reports which bits are implemented for GPIO Port _N_.
+
+Within the 32-bit Register field, a bit reads as 1 when the corresponding GPIO function is implemented for GPIO Port _N_.
+Bits disabled at RTL design time always read as 0.
+
+The value of this Register is determined by `GPIO_BITS_PRESENT[N]`.
+
+.Port _N_ Bit Present Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field       | Description                                                | R/W | Reset
+| 31:0 | Bit Present | Indicates whether each bit of GPIO Port _N_ is implemented. +
+                       0: The corresponding GPIO port bit is not implemented +
+                       1: The corresponding GPIO port bit is implemented          | R   | Config.
+|===
+
+[[sc-gpio-port-edge-pending-register]]
+=== Port _N_ Edge Pending Register (Offset: 0x110 + 0x20 * _N_)
+
+The Port _N_ Edge Pending Register reports the status of GPIO port edge detection events.
+
+When the <<sc-gpio-port-rising-edge-detect-enable-register,Rising Edge Detect Enable Register>> or
+<<sc-gpio-port-falling-edge-detect-enable-register,Falling Edge Detect Enable Register>> is set,
+an edge event on the GPIO port sets the corresponding bit in this Register to 1.
+
+Bits disabled at RTL design time always read as 0.
+
+.Port _N_ Edge Pending Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field             | Description                                                | R/W | Reset
+| 31:0 | Port Edge Pending | Reports the edge event detection status for GPIO Port _N_. +
+                             0: No edge event detected +
+                             1: Edge event detected +
+                             Writing 1 to a set bit clears the event.                   | R/W1C | 0x00000000
+|===
+
+[[sc-gpio-port-interrupt-enable-register]]
+=== Port _N_ Interrupt Enable Register (Offset: 0x114 + 0x20 * _N_)
+
+The Port _N_ Interrupt Enable Register controls whether edge detection events on the GPIO port are reported as interrupts.
+
+When a corresponding bit in the <<sc-gpio-port-edge-pending-register,Port Edge Pending Register>> is set by rising
+or falling edge detection and the corresponding bit in this Register is also set,
+the event is reported in the <<sc-gpio-interrupt-status-register,Interrupt Status Register>>.
+
+Each bit can be set regardless of the configuration of other registers.
+Bits disabled at RTL design time always read as 0.
+
+.Port _N_ Interrupt Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field                 | Description                                                        | R/W | Reset
+| 31:0 | Port Interrupt Enable | Controls whether an edge detection event on GPIO Port _N_ is reported as an interrupt. +
+                                 0: Do not report edge detection events as interrupts +
+                                 1: Report edge detection events as interrupts                      | R/W | 0x00000000
+|===
+
+[[sc-gpio-port-rising-edge-detect-enable-register]]
+=== Port _N_ Rising Edge Detect Enable Register (Offset: 0x118 + 0x20 * _N_)
+
+The Port _N_ Rising Edge Detect Enable Register enables rising edge detection for the corresponding bits of the GPIO port.
+
+When a bit in this Register is set, rising edge detection is enabled for the corresponding signal.
+When a rising edge is detected while this function is enabled,
+the corresponding bit in the <<sc-gpio-port-edge-pending-register,Port Edge Pending Register>> is set.
+
+This Register can be set regardless of the signal direction configured by the <<sc-gpio-port-direction-register,Direction Register>>.
+Bits disabled at RTL design time always read as 0.
+
+.Port _N_ Rising Edge Detect Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field              | Description                                           | R/W | Reset
+| 31:0 | Rising Edge Enable | Enables rising edge detection for GPIO Port _N_. +
+                              0: Rising edge detection disabled +
+                              1: Rising edge detection enabled                      | R/W | 0x00000000
+|===
+
+[[sc-gpio-port-falling-edge-detect-enable-register]]
+=== Port _N_ Falling Edge Detect Enable Register (Offset: 0x11C + 0x20 * _N_)
+
+The Port _N_ Falling Edge Detect Enable Register enables falling edge detection for the corresponding bits of the GPIO port.
+
+When a bit in this Register is set, falling edge detection is enabled for the corresponding signal.
+When a falling edge is detected while this function is enabled,
+the corresponding bit in the <<sc-gpio-port-edge-pending-register,Port Edge Pending Register>> is set.
+
+This Register can be set regardless of the signal direction configured by the <<sc-gpio-port-direction-register,Direction Register>>.
+Bits disabled at RTL design time always read as 0.
+
+.Port _N_ Falling Edge Detect Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field               | Description                                            | R/W | Reset
+| 31:0 | Falling Edge Enable | Enables falling edge detection for GPIO Port _N_. +
+                               0: Falling edge detection disabled +
+                               1: Falling edge detection enabled                      | R/W | 0x00000000
+|===

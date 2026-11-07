@@ -1,0 +1,349 @@
+[[sc-gpio-registers]]
+== Registers
+
+本章では、SC-GPIOのRegister Mapと各Registerの機能について説明する。
+
+[[sc-gpio-register-map]]
+=== Register Map
+
+ポート制御レジスタは、RTL設計時に実装されるレジスタ数が決定される。
+ポート数は、<<sc-gpio-ip-configuration-register,IP Configuration Register>>を読み出すことで、Softwareから判別できる。
+
+_N_ はGPIOポート番号を表し、0から `GPIO_NUM_PORTS - 1` の範囲とする。
+32ポートを実装した場合、最後のRegister Offsetは `0x4FC` であり、このRegisterが占有する最後のバイトOffsetは `0x4FF` である。
+
+.SC-GPIO Register List
+[cols="1,4,2,1",options="header",]
+|===
+| Offset                | Register                                     | Initial    | R/W
+| 0x000                 | IP Version Register                          | 1.1.x      | R
+| 0x004                 | IP Configuration Register                    | Config.    | R
+| 0x010                 | IP Reset Register                            | 0x00000001 | R/W
+| 0x01C                 | Scratch Pad Register                         | 0x00000000 | R/W
+| 0x020                 | Interrupt Status Register                    | 0x00000000 | R
+| 0x024                 | Interrupt Enable Register                    | 0x00000000 | R/W
+| 0x100 + (0x20 × _N_ ) | Port _N_ Output Data Register                | Config.    | R/W
+| 0x104 + (0x20 × _N_ ) | Port _N_ Input Data Register                 | 0x00000000 | R
+| 0x108 + (0x20 × _N_ ) | Port _N_ Direction Register                  | Config.    | R/W
+| 0x10C + (0x20 × _N_ ) | Port _N_ Bit Present Register                | Config.    | R
+| 0x110 + (0x20 × _N_ ) | Port _N_ Edge Pending Register               | 0x00000000 | R/W1C
+| 0x114 + (0x20 × _N_ ) | Port _N_ Interrupt Enable Register           | 0x00000000 | R/W
+| 0x118 + (0x20 × _N_ ) | Port _N_ Rising Edge Detect Enable Register  | 0x00000000 | R/W
+| 0x11C + (0x20 × _N_ ) | Port _N_ Falling Edge Detect Enable Register | 0x00000000 | R/W
+|===
+
+InitialがConfig.のRegisterは、<<sc-gpio-ip-configuration,IP Configuration>>によって初期値が決定される。
+具体的な初期値は、各Registerの説明を参照すること。
+
+
+[NOTE]
+====
+SC-GPIOのRegister Address Regionは `0x800` バイトである。
+この領域内でRegister Mapに定義されていないOffsetからの読み出し値は `0x00000000` となり、書き込みは無視される。
+AMBA 3 AHB-LiteおよびAMBA 4 AXI4の応答はOKAYとなる。
+====
+
+[[sc-gpio-ip-version-register]]
+=== IP Version Register (Offset: 0x000)
+
+GPIO コアの IP Version を示すレジスタ。
+
+現在のIP Versionは1.1.xである。
+
+.IP Version Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit   | Field            | Description                        | R/W | Reset
+| 31:24 | IP Major Version | GPIOコアのMajor Versionを示す。 | R   | 0x1
+| 23:16 | IP Minor Version | GPIOコアのMinor Versionを示す。 | R   | 0x1
+| 15:0  | IP Patch Version | GPIOコアのPatch Versionを示す。 | R   | Variable
+|===
+
+[NOTE]
+====
+Patch Versionは互換性に影響しない修正で更新される。
+Softwareは互換性の判定にMajor VersionおよびMinor Versionを使用すること。
+Patch Versionの値はRegisterから読み出すことができる。
+====
+
+[[sc-gpio-ip-configuration-register]]
+=== IP Configuration Register (Offset: 0x004)
+
+IP Configuration Register は、GPIO コアの Configuration 情報をシステムへ通知するためのレジスタである。
+
+GPIO コアにおいて、このレジスタはシステムに実装される GPIO ポート数を示す。
+
+.IP Configuration Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field     | Description                                            | R/W | Reset
+| 31:6 | Reserved  | -                                                      | R   | 0
+| 5:0  | Num Ports | GPIO コアのポート数を示すフィールド。 +
+                             ポート数が 1 の場合、読み出し値は 1 となる。 +
+                             実装されているポート数に応じて、
+                             1 ～ 32 のいずれかの値を読み出せる。           | R   | Config.
+|===
+
+Num Portsの値は `GPIO_NUM_PORTS` で決定される。
+
+[[sc-gpio-ip-reset-register]]
+=== IP Reset Register (Offset: 0x010)
+
+IP Reset Register は、GPIO コアの Software Reset を制御するためのレジスタである。
+
+本レジスタおよびシステムバス以外のすべてのロジックは、
+本レジスタによりリセットできる。
+
+.IP Reset Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field          | Description                                                | R/W | Reset
+| 31:1 | Reserved       | -                                                          | R   | 0
+| 0    | Software Reset | GPIO コアの Software Reset を制御するためのビット。 +
+                           1: Software Reset Assert +
+                           0: Software Reset Release +
+                           初期値は 1 であるため、
+                           システムリセット後は必ずこのビットをクリアする必要がある。| R/W | 0b1
+|===
+
+[[sc-gpio-scratch-pad-register]]
+=== Scratch Pad Register (Offset: 0x01C)
+
+Scratch Pad Register は、Software が任意の値を読み書きするための汎用レジスタである。
+
+このレジスタの値はハードウェア制御には使用されず、
+Software によるデバッグ、状態保持、および動作確認などを目的として使用できる。
+
+.Scratch Pad Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field       | Description                                                | R/W | Reset
+| 31:0 | Scratch Pad | Software により自由に読み書き可能な汎用レジスタフィールド。| R/W | 0x00000000
+|===
+
+[[sc-gpio-interrupt-status-register]]
+=== Interrupt Status Register (Offset: 0x020)
+
+Interrupt Status Register は、GPIO コアの割り込みステータスを示すレジスタである。
+
+フィールドは 32ポート分存在するが、RTL 設計時に無効化されたポートのビットは、予約ビットとなる。
+
+<<sc-gpio-port-edge-pending-register,Port Edge Pending Register>>と
+<<sc-gpio-port-interrupt-enable-register,Port Interrupt Enable Register>>の対応するビットがともにセットされている場合、
+このレジスタに割り込み状態として反映される。
+
+このレジスタは割り込みイベントをラッチする機能を持たず、
+<<sc-gpio-port-edge-pending-register,Port Edge Pending Register>>のイベント要因をクリアすると、このレジスタもクリアされる。
+
+このレジスタは、Software が割り込み発生ポートを識別するためのインデックスとして使用される。
+
+.Interrupt Status Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit | Field              | Description                                                          | R/W | Reset
+| 31  | Port 31 Int Status | GPIO Port 31 のいずれかのビットで割り込みが発生したことを示すビット。| R   | 0b0
+| 30  | Port 30 Int Status | GPIO Port 30 のいずれかのビットで割り込みが発生したことを示すビット。| R   | 0b0
+| ... | ...                | ...                                                                  | ... | ...
+| 1   | Port 1 Int Status  | GPIO Port 1 のいずれかのビットで割り込みが発生したことを示すビット。 | R   | 0b0
+| 0   | Port 0 Int Status  | GPIO Port 0 のいずれかのビットで割り込みが発生したことを示すビット。 | R   | 0b0
+|===
+
+[[sc-gpio-interrupt-enable-register]]
+=== Interrupt Enable Register (Offset: 0x024)
+
+Interrupt Enable Register は、GPIO コアの割り込み信号通知を制御するための設定レジスタである。
+
+Interrupt Enable Registerと<<sc-gpio-interrupt-status-register,Interrupt Status Register>>の対応するビットがともにセットされている場合、
+GPIO コアは割り込み出力信号をアサートし、割り込みが発生したことを通知する。
+
+.Interrupt Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit | Field              | Description                                            | R/W | Reset
+| 31  | Port 31 Int Enable | GPIO Port 31 の割り込みイベント通知を有効化するビット。| R/W | 0b0
+| 30  | Port 30 Int Enable | GPIO Port 30 の割り込みイベント通知を有効化するビット。| R/W | 0b0
+| ... | ...                | ...                                                    | ... | ...
+| 1   | Port 1 Int Enable  | GPIO Port 1 の割り込みイベント通知を有効化するビット。 | R/W | 0b0
+| 0   | Port 0 Int Enable  | GPIO Port 0 の割り込みイベント通知を有効化するビット。 | R/W | 0b0
+|===
+
+[[sc-gpio-port-output-register]]
+=== Port _N_ Output Register (Offset: 0x100 + 0x20 * _N_)
+
+Port _N_ Output Register は、GPIO Port _N_ の出力データ制御レジスタである。
+
+このレジスタは、各ビットの信号方向に関わらず書き込むことができる。
+対応するビットの<<sc-gpio-port-direction-register,Direction Register>>がOutputに設定されている場合、
+このレジスタに書き込まれた値がGPIOポートへ出力される。
+
+<<sc-gpio-port-direction-register,Direction Register>>が入力に固定されているビットに対しても、
+このレジスタへ書き込むことはできるが、GPIOポートには影響しない。
+
+このレジスタは、RTL 設計時に初期値を設定する機能がある。
+従って、リセット時の初期値は実装依存となる。
+また、RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+リセット時の初期値は `GPIO_OUT_INIT[N] & GPIO_BITS_PRESENT[N]` で決定される。
+
+.Port _N_ Output Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field       | Description                                         | R/W | Reset
+| 31:0 | Output Data | GPIO Port _N_ の出力信号レベルを設定するフィールド。| R/W | Config.
+|===
+
+[[sc-gpio-port-input-register]]
+=== Port _N_ Input Register (Offset: 0x104 + 0x20 * _N_)
+
+Port _N_ Input Register は、GPIO Port _N_ の入力データを読み出すためのレジスタである。
+
+このレジスタは、信号方向に関わらず常にGPIOポートの信号状態を示す。
+
+[NOTE]
+====
+リセット直後、このレジスタは `0x00000000` を示す。
+リセット解除後、内部同期化回路を経てGPIO入力状態が反映されるため、Softwareが読み出す時点で `0x00000000` とは限らない。
+====
+
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+.Port _N_ Input Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field      | Description                                               | R/W | Reset
+| 31:0 | Input Data | GPIO Port _N_ の入力信号レベルを読み出すためのフィールド。| R   | 0x00000000
+|===
+
+[[sc-gpio-port-direction-register]]
+=== Port _N_ Direction Register (Offset: 0x108 + 0x20 * _N_)
+
+Port _N_ Direction Register は、GPIO Port _N_ の入出力方向を制御するためのレジスタである。
+
+このレジスタに設定されている値に応じ、GPIO ポートは信号方向を切り替える。
+
+RTL 設計時の設定により、信号方向をビット単位で固定できる。
+`GPIO_DIR_WRITABLE[N]` が0のビットは、 `GPIO_DIR_INIT[N]` で指定した信号方向に固定され、書き込みは無視される。
+
+このレジスタのリセット値は、RTL 設計時の GPIO_DIR_INIT の設定により決定される。
+
+リセット時の初期値は `GPIO_DIR_INIT[N] & GPIO_BITS_PRESENT[N]` で決定される。
+
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+.Port _N_ Direction Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field          | Description                                            | R/W | Reset
+| 31:0 | Port Direction | GPIO Port _N_ の信号方向を設定するためのフィールド。 +
+                          0: GPIO ポートの信号方向は入力 +
+                          1: GPIO ポートの信号方向は出力                         | R/W | Config.
+|===
+
+[[sc-gpio-port-bit-present-register]]
+=== Port _N_ Bit Present Register (Offset: 0x10C + 0x20 * _N_)
+
+Port _N_ Bit Present Register は、GPIO Port _N_ に実装されたビットの有無をシステムに通知するためのレジスタである。
+
+32ビットのレジスタフィールドにおいて、GPIO Port _N_ にGPIO機能が実装されているビットは 1 を読み出すことができる。
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+このRegisterの値は `GPIO_BITS_PRESENT[N]` で決定される。
+
+.Port _N_ Bit Present Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field       | Description                                                    | R/W | Reset
+| 31:0 | Bit Present | GPIO Port _N_ にビットが実装されていることを示すフィールド。 +
+                       0: GPIO ポートの該当ビットは実装されていない +
+                       1: GPIO ポートの該当ビットは実装されている                     | R   | Config.
+|===
+
+[[sc-gpio-port-edge-pending-register]]
+=== Port _N_ Edge Pending Register (Offset: 0x110 + 0x20 * _N_)
+
+Port _N_ Edge Pending Registerは、GPIOポートのエッジ検出イベントの状態を読み出すためのRegisterである。
+
+<<sc-gpio-port-rising-edge-detect-enable-register,Rising Edge Detect Enable Register>>または
+<<sc-gpio-port-falling-edge-detect-enable-register,Falling Edge Detect Enable Register>>がセットされているとき、
+GPIOポートにエッジ変化イベントが発生すると、このレジスタが1にセットされる。
+
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+.Port _N_ Edge Pending Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field             | Description                                                   | R/W | Reset
+| 31:0 | Port Edge Pending | GPIO Port _N_ のエッジイベントの検出状態を示すフィールド。 +
+                              0: エッジイベント未検出 +
+                              1: エッジイベント検出 +
+                              このフィールドがセットされているとき、1 を書き込むと、イベントはクリアされる。
+                                                                                           | R/W1C | 0x00000000
+|===
+
+[[sc-gpio-port-interrupt-enable-register]]
+=== Port _N_ Interrupt Enable Register (Offset: 0x114 + 0x20 * _N_)
+
+Port _N_ Interrupt Enable Register は、GPIO ポートで発生するエッジ検出イベント
+を割り込みとして通知するか設定するためのレジスタである。
+
+立ち上がりエッジ検出または立ち下がりエッジ検出によって
+<<sc-gpio-port-edge-pending-register,Port Edge Pending Register>>の対応するビットがセットされており、
+かつこのレジスタの対応するビットがセットされているとき、
+<<sc-gpio-interrupt-status-register,Interrupt Status Register>>へ割り込みとして通知される。
+
+各ビットは、他のレジスタ設定状態によらずセットできる。
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+.Port _N_ Interrupt Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field                 | Description                                            | R/W | Reset
+| 31:0 | Port Interrupt Enable | GPIO Port _N_ の入力信号に対するエッジ検出イベントを、
+                                  割り込みとして通知するか設定するためのフィールド。 +
+                                  0: エッジ検出イベントを割り込みとして通知しない +
+                                  1: エッジ検出イベントを割り込みとして通知する         | R/W | 0x00000000
+|===
+
+[[sc-gpio-port-rising-edge-detect-enable-register]]
+=== Port _N_ Rising Edge Detect Enable Register (Offset: 0x118 + 0x20 * _N_)
+
+Port _N_ Rising Edge Detect Enable Register は、
+GPIO ポートの対応するビットに対する立ち上がりエッジ検出機能を有効化するためのレジスタである。
+
+このレジスタがセットされると、対応するビットの信号に対し立ち上がりエッジ検出機能が有効化される。
+エッジ検出機能が有効化された状態で、対応するビットの信号の立ち上がりを検出すると、
+<<sc-gpio-port-edge-pending-register,Port Edge Pending Register>>の対応するビットがセットされる。
+
+このレジスタは、<<sc-gpio-port-direction-register,Direction Register>>により設定される信号方向によらずセットできる。
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+.Port _N_ Rising Edge Detect Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field              | Description                                                         | R/W | Reset
+| 31:0 | Rising Edge Enable | GPIO Port _N_ の立ち上がりエッジ検出を有効化するためのフィールド。 +
+                              0: Rising Edge 検出無効 +
+                              1: Rising Edge 検出有効                                             | R/W | 0x00000000
+|===
+
+[[sc-gpio-port-falling-edge-detect-enable-register]]
+=== Port _N_ Falling Edge Detect Enable Register (Offset: 0x11C + 0x20 * _N_)
+
+Port _N_ Falling Edge Detect Enable Register は、
+GPIO ポートの対応するビットに対する立ち下がりエッジ検出機能を有効化するためのレジスタである。
+
+このレジスタがセットされると、対応するビットの信号に対し立ち下がりエッジ検出機能が有効化される。
+エッジ検出機能が有効化された状態で、対応するビットの信号の立ち下がりを検出すると、
+<<sc-gpio-port-edge-pending-register,Port Edge Pending Register>>の対応するビットがセットされる。
+
+このレジスタは、<<sc-gpio-port-direction-register,Direction Register>>により設定される信号方向によらずセットできる。
+RTL 設計時に無効化されたビットについては、常に 0 を示す。
+
+.Port _N_ Falling Edge Detect Enable Register Description
+[cols="1,3,5,1,1",options="header",]
+|===
+| Bit  | Field               | Description                                                      | R/W | Reset
+| 31:0 | Falling Edge Enable | GPIO Port _N_ の立ち下がりエッジ検出を有効化するためのフィールド。 +
+                               0: Falling Edge 検出無効 +
+                               1: Falling Edge 検出有効                                         | R/W | 0x00000000
+|===

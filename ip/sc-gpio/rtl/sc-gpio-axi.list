@@ -1,0 +1,5 @@
+lib/screg-pkg/screg_pkg.sv
+lib/sclib/sclib_tmr_syncff.sv
+lib/scbus/sc_axiip_subordinate.sv
+ip/sc-gpio/rtl/sc_gpio_reg.sv
+ip/sc-gpio/rtl/sc_gpio_axi.sv
