@@ -2,6 +2,8 @@
 
 **Space Cubics Open-Source Resilient Component Architecture**
 
+*The Radiation-Resilient Open-Source RTL Architecture by Space Cubics*
+
 SC-ORCA is an open-source collection of reusable RTL components
 developed and maintained by Space Cubics.
 
