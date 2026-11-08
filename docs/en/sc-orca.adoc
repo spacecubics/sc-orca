@@ -1,0 +1,118 @@
+= SC-ORCA
+:lang: en
+:toc:
+:toc-title: Table of Contents
+:toclevels: 4
+:sectnums:
+
+Space Cubics Open-Source Resilient Component Architecture
+
+_The Radiation-Resilient Open-Source RTL Architecture by Space Cubics_
+
+== Overview
+
+SC-ORCA is an open-source collection of reusable RTL components developed and maintained by
+Space Cubics.
+
+SC-ORCA provides IP cores, bus components, primitives, packages, and verification IP written in
+Verilog and SystemVerilog.
+
+Space Cubics Inc. develops high-reliability computers for use in harsh environments, including
+space. SC-ORCA publishes RTL components used in On-Board Computers (OBCs) developed by
+Space Cubics, together with common design frameworks.
+
+SC-ORCA follows design principles that account for the reliability requirements of digital
+systems operating in space and other harsh environments. These principles include fault-tolerance
+techniques such as Triple Modular Redundancy (TMR) and error-correcting code (ECC), along with
+measures to detect and mitigate logical faults caused by Single Event Effects (SEEs), including
+Single Event Upsets (SEUs).
+
+[NOTE]
+====
+SC-ORCA is currently provided as a preliminary release. The directory structure, file placement,
+and other aspects of the project may change substantially in the future.
+====
+
+== License
+
+SC-ORCA is provided under the Apache License 2.0.
+See link:../../LICENSE[LICENSE] for the full license text.
+
+== Conventions
+
+This chapter defines the data units, typographical conventions, and register description
+conventions used throughout the SC-ORCA documentation.
+
+=== Data Units
+
+The SC-ORCA documentation uses the following units for data sizes:
+
+* Byte: 8 bits
+* Word: 32 bits (4 bytes)
+
+A Word represents 32 bits of data regardless of the system bus data width.
+
+=== Typographical Conventions
+
+Italic type:: Indicates a variable index that is replaced by a value in an expression or name.
+For example, _N_ in Register _N_ represents a register number. The range of a variable index is
+defined in the corresponding register description.
+Monospace type:: Indicates module names, signal names, parameter names, file names, commands,
+numeric literals, and source code. Monospace type is not used for module names, signal names,
+parameter names, or field names in tables that define those identifiers.
+Numeric notation::
++
+* A value beginning with `0x` is hexadecimal.
+* A value beginning with `0b` is binary.
+* A value without a prefix is decimal.
+* RTL values may use SystemVerilog numeric literals such as `32'h0000_0000`.
+
+=== Register Description Conventions
+
+Register field information is presented in a table such as the following:
+
+[cols="4,15,25,4,7",options="header",]
+|===
+| Bit  | Field       | Description                                                   | R/W | Reset
+| 31:0 | Scratch Pad | General-purpose register field freely readable and writable by software.
+| R/W | 0x00000000
+|===
+
+The columns have the following meanings:
+
+Bit:: Indicates a bit position or bit range within the register. 31:0 indicates a 32-bit field
+spanning bit 31 through bit 0.
+Field:: Indicates the field name.
+Description:: Describes the field function and settings.
+R/W:: Indicates the field access attribute. The following table defines the access attributes.
++
+[cols="1,4",width=55%,options="header",]
+|===
+| Access | Description
+| R      | Readable
+| W      | Writable
+| R/W    | Readable and writable
+| R/W1C  | Readable. Writing 1 clears the corresponding bit; writing 0 has no effect.
+|===
+Reset:: Indicates the field value after reset. `Config.` indicates a value determined by the RTL
+configuration. `Variable` indicates a value that varies with the IP core version or similar
+information.
+
+== IP Cores
+
+The following table lists the IP cores included in SC-ORCA and their specifications.
+
+[cols="2,1,2,3,2",options="header"]
+|===
+| IP Core | Version | Module Name | System Bus | Specification
+
+.2+| SC-GPIO
+.2+| 1.1.x
+   | sc_gpio_ahb
+   | AMBA 3 AHB-Lite
+.2+| link:../../ip/sc-gpio/docs/en/sc-gpio.adoc[SC-GPIO]
+
+   | sc_gpio_axi
+   | AMBA 4 AXI4
+
+|===
