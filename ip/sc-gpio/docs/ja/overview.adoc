@@ -24,4 +24,3 @@ GPIOポートの数と、各ポートのビット数、信号方向に関する�
 == Block Diagram
 
 image::../images/sc_gpio_block_diagram.svg[SC-GPIO Block Diagram]
-
