@@ -24,6 +24,13 @@ Single Event Effects (SEEs), including Single Event Upsets (SEUs).
 
 ---
 
+## Documentation
+
+- [English](./docs/en/sc-orca.adoc)
+- [Japanese](./docs/ja/sc-orca.adoc)
+
+---
+
 ## License
 
 This project is licensed under the **Apache License 2.0**.
