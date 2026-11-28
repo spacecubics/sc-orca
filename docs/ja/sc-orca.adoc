@@ -33,7 +33,7 @@ SC-ORCAは現在、暫定公開中である。
 
 == License
 
-SC-ORCAは、Apache License 2.0に基づいて提供される。
+SC-ORCAは、CERN-OHL-W-2.0に基づいて提供される。
 ライセンスの全文は、link:../../LICENSE[LICENSE]を参照すること。
 
 == Conventions

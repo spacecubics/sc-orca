@@ -35,7 +35,7 @@ and other aspects of the project may change substantially in the future.
 
 == License
 
-SC-ORCA is provided under the Apache License 2.0.
+SC-ORCA is provided under CERN-OHL-W-2.0.
 See link:../../LICENSE[LICENSE] for the full license text.
 
 == Conventions
